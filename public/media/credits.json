@@ -1,0 +1,50 @@
+[
+  {
+    "file": "/media/server-aisle.jpg",
+    "id": 37730211,
+    "title": "Modern server rack with blue lighting in a secure data center environment",
+    "photographer": "panumas nikhomkhai",
+    "photographerUrl": "https://www.pexels.com/@cookiecutter",
+    "photoUrl": "https://www.pexels.com/photo/close-up-of-a-blue-server-rack-in-datacenter-37730211/"
+  },
+  {
+    "file": "/media/identity-scan.jpg",
+    "id": 37538043,
+    "title": "A modern fingerprint scanner for secure access control in an office environment",
+    "photographer": "panumas nikhomkhai",
+    "photographerUrl": "https://www.pexels.com/@cookiecutter",
+    "photoUrl": "https://www.pexels.com/photo/modern-fingerprint-access-control-system-37538043/"
+  },
+  {
+    "file": "/media/on-call-engineer.jpg",
+    "id": 1181354,
+    "title": "A female engineer using a laptop while monitoring data servers in a modern server room",
+    "photographer": "Christina Morillo",
+    "photographerUrl": "https://www.pexels.com/@divinetechygirl",
+    "photoUrl": "https://www.pexels.com/photo/software-engineer-standing-beside-server-racks-1181354/"
+  },
+  {
+    "file": "/media/second-factor.jpg",
+    "id": 4910129,
+    "title": "A hand interacting with a smartphone touchscreen",
+    "photographer": "Ketut Subiyanto",
+    "photographerUrl": "https://www.pexels.com/@ketut-subiyanto",
+    "photoUrl": "https://www.pexels.com/photo/person-looking-at-a-smartphone-4910129/"
+  },
+  {
+    "file": "/media/network-fabric.jpg",
+    "id": 5073493,
+    "title": "Numerous wires and cables mounted into a server patch panel in a modern data center",
+    "photographer": "Brett Sayles",
+    "photographerUrl": "https://www.pexels.com/@brett-sayles",
+    "photoUrl": "https://www.pexels.com/photo/cables-plugged-into-patch-panel-5073493/"
+  },
+  {
+    "file": "/media/server-room.jpg",
+    "id": 5480781,
+    "title": "System with various wires managing access to a centralized server resource",
+    "photographer": "Brett Sayles",
+    "photographerUrl": "https://www.pexels.com/@brett-sayles",
+    "photoUrl": "https://www.pexels.com/photo/server-racks-on-data-center-5480781/"
+  }
+]
