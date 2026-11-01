@@ -22,32 +22,45 @@ The MFA flow and the audit ledger are wired to live services and were exercised 
 |---|---|
 | Build, types, lint | Passing. `npm run build`, `npx tsc --noEmit` and `npm run lint` succeed. |
 | Clerk instance | Development instance in **test mode**, with `email_code` as the first factor, plus `totp` and `backup_code` as second factors. Require-MFA is on. |
-| Sign-up and email verification | Tested with a Clerk test email and code `424242`. |
+| Sign-up and email verification | **Tested** on the deployed site with a real address. |
+| Returning sign-in | **Tested.** Email code, then the TOTP challenge at `/sign-in/factor-two`. |
 | TOTP enrollment | **Tested.** Clerk issued the secret, a generated code was accepted, and backup codes were issued. |
 | Dashboard gate | **Tested.** `/dashboard` refuses to open until TOTP is enrolled, then opens on the next server read. |
-| Supabase ledger | **Connected and tested.** A `posture_verified` row was written through `POST /api/audit` with the service-role key. |
+| Supabase ledger | **Connected and tested.** `posture_verified` rows are written through `POST /api/audit` with the service-role key. |
 | Ledger immutability | **Tested against the live project.** `PATCH` and `DELETE` on `security_events` return `42501 permission denied`. |
-| Clerk webhook | Code complete. Requires the deployed endpoint and `CLERK_WEBHOOK_SIGNING_SECRET`; see [Clerk webhook setup](#clerk-webhook-setup). |
-| Vercel | Ready to import. Add the environment block from [Deployment](#deployment), then redeploy. |
+| Clerk webhook | **Live and verified.** Signed `user.created` / `user.updated` deliveries wrote `mfa_state_changed` rows; forged and stale signatures return `401`. |
+| Session revocation | **Tested.** Revoking from the UI writes a `session_revoked` row after the server confirms the session is inactive. |
+| Vercel | **Deployed** at `vigil-mfa-system.vercel.app`. |
 
 ### What was actually tested
 
+All of the following ran against the deployed site at `vigil-mfa-system.vercel.app`, not just localhost.
+
 - Landing page at desktop and mobile widths, and the branded 404.
-- Sign-up with a Clerk test email, email-code verification, and Clerk's required MFA task.
+- Sign-up with a real address, email-code verification, and Clerk's required MFA task.
 - TOTP enrollment with a generated six-digit code, followed by backup-code issuance.
 - Redirect to `/dashboard/security`, then `/dashboard` opening because `totpEnabled` was true server-side.
+- Returning-user sign-in: email code, then the `/sign-in/factor-two` TOTP challenge, then the console.
 - `POST /api/audit` writing a verified `posture_verified` row to the live Supabase project.
-- `GET /api/audit` rendering that row on `/dashboard/activity`.
+- `GET /api/audit` rendering rows on `/dashboard/activity`.
+- Signed Clerk webhook delivery: `user.created` and `user.updated` produced `mfa_state_changed` rows with real `svix-id` values.
+- Session revocation from the UI, with the `session_revoked` row written server-side.
+- Webhook rejection: missing, forged and stale-timestamp signatures all return `401`.
 - `PATCH` and `DELETE` rejection on `security_events` with the service-role key.
-- Production build and TypeScript compilation.
+- Production build, lint and TypeScript compilation.
 
-Not yet exercised: signed webhook delivery (needs a public endpoint), and session revocation against a second live session.
+One race was found and fixed during this pass: Clerk can still report a session as `active` for a moment after `revoke()` resolves, so the first audit write could be refused with `409` and silently dropped. `session-list.tsx` now retries the write until Clerk settles and warns if it still cannot record.
+
+Not yet exercised: backup-code sign-in, and MFA removal on a live account (both would lock out the demo account).
 
 ### Test mode is deliberate
 
-This build runs on a Clerk **development** instance and uses `pk_test_` / `sk_test_` keys. That is intentional for a college submission: it keeps the demo self-contained and avoids a production instance. Sign-in is email-code based, and Clerk's test convention applies — `name+clerk_test@example.com` accepts the fixed code `424242`.
+This build runs on a Clerk **development** instance and uses `pk_test_` / `sk_test_` keys. That is intentional for a college submission: it keeps the demo self-contained and avoids a production instance. Sign-in is email-code based. Two kinds of address work:
 
-A production deployment would need its own Clerk instance, `pk_live_` / `sk_live_` keys, and a real email provider. Nothing in the application code changes.
+- A test address such as `name+clerk_test@example.com` accepts the fixed code `424242` and sends no email.
+- A real address receives an actual message from Clerk's development sender. That sender is rate limited, so use a test address for repeated demos.
+
+A production deployment would need its own Clerk instance, `pk_live_` / `sk_live_` keys, and a configured email provider. Nothing in the application code changes.
 
 ---
 
@@ -563,13 +576,15 @@ If the repository name differs, update `site.github` in `src/lib/site.ts` so the
 - [x] Backup code enabled.
 - [x] Require MFA enabled.
 - [x] Test keys (`pk_test_`, `sk_test_`) in Vercel.
-- [ ] Clerk allowed origins include `https://vigil-mfa-system.vercel.app`.
+- [x] Clerk allowed origins include `https://vigil-mfa-system.vercel.app`.
 - [x] `NEXT_PUBLIC_SITE_URL` matches the production domain.
 - [x] Supabase schema applied to the project.
 - [x] Service-role key stored only in Vercel and `.env.local`.
-- [ ] Webhook endpoint created with its own signing secret.
-- [x] A test account completes email + TOTP + backup-code issuance.
+- [x] Webhook endpoint created at `/api/webhooks/clerk` with its own signing secret.
+- [x] An account completes email + TOTP + backup-code issuance.
+- [x] Returning sign-in completes email + TOTP.
 - [x] `/dashboard` opens after enrollment.
+- [x] Session revocation writes a `session_revoked` row.
 - [x] `security_events` rejects update/delete.
 - [x] No `.env.local` or secret is present in the Git history.
 
