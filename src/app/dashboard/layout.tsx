@@ -114,7 +114,7 @@ export default async function DashboardLayout({
           <footer className="flex flex-col justify-between gap-2 border-t border-border px-5 py-4 font-mono text-[0.5625rem] uppercase tracking-[0.14em] text-muted-foreground/40 sm:flex-row md:px-8 lg:px-10">
             <span>Vigil / security console</span>
             <span>
-              Made by Indeep Kaur · Built with IBM Bob ·{" "}
+              Made by Indeep Kour · Built with IBM Bob ·{" "}
               <Link
                 href="/"
                 className="underline decoration-border underline-offset-4 hover:text-foreground"

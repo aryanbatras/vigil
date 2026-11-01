@@ -4,7 +4,7 @@
 
 Vigil is a multi-factor authentication console built with **Next.js, Clerk and Supabase**. It is a deliberate second answer to the same brief as [MFA System](https://github.com/aryanbatras/MFA-system). The first build used Better Auth, Turso and Resend; Vigil moves identity to Clerk and the audit trail to Supabase.
 
-> **Built with [IBM Bob](https://www.ibm.com/bob).** Product direction, interface and the original MFA experiment by **Indeep Kaur**. Implementation, review and documentation were produced with IBM Bob.
+> **Built with [IBM Bob](https://www.ibm.com/bob).** Product direction, interface and the original MFA experiment by **Indeep Kour**. Implementation, review and documentation were produced with IBM Bob.
 
 - Landing page: a type-led, teal-and-paper statement with one credited Pexels photograph.
 - Auth: Clerk owns the email factor, authenticator app, backup codes and sessions.
@@ -646,7 +646,7 @@ Pexels photos are used under the [Pexels license](https://www.pexels.com/license
 
 ## Credits
 
-- **Indeep Kaur** — product direction, interface, original MFA experiment.
+- **Indeep Kour** — product direction, interface, original MFA experiment.
 - **[IBM Bob](https://www.ibm.com/bob)** — implementation partner: code, review, documentation.
 - **[Clerk](https://clerk.com)** — identity, email verification, TOTP, backup codes, sessions.
 - **[Supabase](https://supabase.com)** — Postgres audit ledger, RLS, service-role access.

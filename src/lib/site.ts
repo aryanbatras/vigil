@@ -3,7 +3,7 @@ export const site = {
   tagline: "The second factor, on the record.",
   description:
     "A passwordless MFA console built with Clerk and Supabase. Email code in, authenticator out, every verified state change written to an append-only ledger.",
-  author: "Indeep Kaur",
+  author: "Indeep Kour",
   builder: "IBM Bob",
   github: "https://github.com/aryanbatras/vigil",
   links: {

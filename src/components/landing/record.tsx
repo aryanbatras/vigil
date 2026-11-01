@@ -6,7 +6,7 @@ import { site } from "@/lib/site";
 const rows = [
   {
     role: "Build",
-    name: "Indeep Kaur",
+    name: "Indeep Kour",
     work: "Product direction, interface, original MFA experiment",
     href: null,
     linkLabel: "Author",
