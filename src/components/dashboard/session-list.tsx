@@ -44,6 +44,28 @@ type SessionRow = {
   revoke: () => Promise<unknown>;
 };
 
+/**
+ * Clerk can still report a session as active for a moment after `revoke()`
+ * resolves. POST /api/audit refuses to record an active session, so retry a
+ * few times instead of dropping the ledger entry on the first 409.
+ */
+async function recordRevocation(sessionId: string): Promise<boolean> {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const response = await fetch("/api/audit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "session_revoked", sessionId }),
+    }).catch(() => null);
+
+    if (response?.ok) return true;
+    if (!response || response.status !== 409) return false;
+
+    await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)));
+  }
+
+  return false;
+}
+
 export function SessionList() {
   const { user, isLoaded } = useUser();
   const { session: currentSession } = useSession();
@@ -108,14 +130,14 @@ export function SessionList() {
       setLoading(true);
       setRefreshKey((value) => value + 1);
 
-      void fetch("/api/audit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "session_revoked",
-          sessionId: session.id,
-        }),
-      }).catch(() => undefined);
+      void recordRevocation(session.id).then((recorded) => {
+        if (!recorded) {
+          toast.warning("Ledger entry did not land", {
+            description:
+              "Clerk revoked the session, but the record could not be verified. Use Verify current state on the overview to re-check.",
+          });
+        }
+      });
     } catch (revokeError) {
       toast.error("Could not revoke the session", {
         description: describeError(revokeError),
