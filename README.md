@@ -14,32 +14,40 @@ Vigil is a multi-factor authentication console built with **Next.js, Clerk and S
 
 ---
 
-## Status and known configuration gaps
+## Status
 
-The application code is complete and `npm run build` passes. Two external services still need configuration before every flow can be demonstrated end to end. This is called out here so the repository does not pretend otherwise.
+The MFA flow and the audit ledger are wired to live services and were exercised end to end.
 
-| Area | State in this repository |
+| Area | State |
 |---|---|
-| Build, types, routing | Passing. `npm run build` and `npx tsc --noEmit` succeed. |
-| Landing, sign-up, email verification | Tested locally with a Clerk development instance in test mode. |
-| Dashboard gate | Tested: `/dashboard` redirects to `/dashboard/security` until TOTP is enrolled. |
-| Clerk TOTP and backup codes | **Blocked by the current Clerk instance.** It is an unclaimed development app with `authenticator_app` and `backup_code` disabled. The UI surfaces Clerk's exact error instead of faking success. |
-| Supabase ledger | **Code complete, no project connected locally.** The console shows "The ledger is not connected" and `/api/audit` returns `503`. Auth and MFA do not depend on Supabase. |
-| Clerk webhook | **Code complete, not delivered locally.** Requires a public endpoint and `CLERK_WEBHOOK_SIGNING_SECRET`. |
-| Vercel | **Not deployed from this checkout.** The repository is ready to import; see [Deployment](#deployment). |
-
-The TOTP gap is a Clerk application setting, not an application bug. A claimed Clerk application with **Authenticator application**, **Backup code** and **Require multi-factor authentication** enabled is required. The setup is documented below.
+| Build, types, lint | Passing. `npm run build`, `npx tsc --noEmit` and `npm run lint` succeed. |
+| Clerk instance | Development instance in **test mode**, with `email_code` as the first factor, plus `totp` and `backup_code` as second factors. Require-MFA is on. |
+| Sign-up and email verification | Tested with a Clerk test email and code `424242`. |
+| TOTP enrollment | **Tested.** Clerk issued the secret, a generated code was accepted, and backup codes were issued. |
+| Dashboard gate | **Tested.** `/dashboard` refuses to open until TOTP is enrolled, then opens on the next server read. |
+| Supabase ledger | **Connected and tested.** A `posture_verified` row was written through `POST /api/audit` with the service-role key. |
+| Ledger immutability | **Tested against the live project.** `PATCH` and `DELETE` on `security_events` return `42501 permission denied`. |
+| Clerk webhook | Code complete. Requires the deployed endpoint and `CLERK_WEBHOOK_SIGNING_SECRET`; see [Clerk webhook setup](#clerk-webhook-setup). |
+| Vercel | Ready to import. Add the environment block from [Deployment](#deployment), then redeploy. |
 
 ### What was actually tested
 
-- Landing page at desktop and mobile widths.
-- Sign-up with a Clerk test email, email-code verification, and redirect to `/dashboard/security`.
-- The server-side gate redirecting `/dashboard` back to `/dashboard/security`.
-- The explicit failure path when TOTP is disabled in Clerk.
-- `GET /api/audit` and `POST /api/audit` with and without Supabase configured.
+- Landing page at desktop and mobile widths, and the branded 404.
+- Sign-up with a Clerk test email, email-code verification, and Clerk's required MFA task.
+- TOTP enrollment with a generated six-digit code, followed by backup-code issuance.
+- Redirect to `/dashboard/security`, then `/dashboard` opening because `totpEnabled` was true server-side.
+- `POST /api/audit` writing a verified `posture_verified` row to the live Supabase project.
+- `GET /api/audit` rendering that row on `/dashboard/activity`.
+- `PATCH` and `DELETE` rejection on `security_events` with the service-role key.
 - Production build and TypeScript compilation.
 
-Successful TOTP enrollment, backup-code generation, Supabase writes and signed webhook delivery were **not** tested against live services. Those paths are implemented but need the configuration described below.
+Not yet exercised: signed webhook delivery (needs a public endpoint), and session revocation against a second live session.
+
+### Test mode is deliberate
+
+This build runs on a Clerk **development** instance and uses `pk_test_` / `sk_test_` keys. That is intentional for a college submission: it keeps the demo self-contained and avoids a production instance. Sign-in is email-code based, and Clerk's test convention applies — `name+clerk_test@example.com` accepts the fixed code `424242`.
+
+A production deployment would need its own Clerk instance, `pk_live_` / `sk_live_` keys, and a real email provider. Nothing in the application code changes.
 
 ---
 
@@ -280,7 +288,7 @@ The app is coded against Clerk's current App Router SDK. Clerk's dashboard chang
 
 1. Open [dashboard.clerk.com](https://dashboard.clerk.com).
 2. Create an application named **Vigil**, or open the existing one.
-3. If Clerk shows **Claim application**, complete the claim. Some instance settings and the Clerk CLI are restricted on unclaimed development apps.
+3. If Clerk shows **Claim application**, complete the claim. Some settings and the Clerk CLI are restricted on unclaimed development apps — MFA is not necessarily one of them, but claiming keeps the instance under your control.
 4. Start with the **Development** instance. Production needs its own instance and keys.
 
 ### 2. Copy the API keys
@@ -323,9 +331,7 @@ The intended flow is **passwordless email code**:
 4. **Disable Password** if you want a strictly passwordless first factor.
 5. Disable social providers such as Google if the only first factor should be the email code.
 
-The development instance used while building this repository still had **Password** and **Google** enabled. That is why the screenshot/flow asks for a password and shows a Google button. The app does not hide this: Clerk renders whatever the instance allows.
-
-If you keep passwords, the rest of the MFA flow still works; just describe the product as email + password + TOTP rather than passwordless.
+The instance used for this repository has **Email code** as the first factor and **Google** enabled as an optional social option. It does **not** have Password enabled, so the sign-up screen asks only for an email address. Disable Google if the only first factor should be the email code — the app renders whatever the instance allows and does not hide it.
 
 ### 5. Enable and require MFA
 
@@ -337,7 +343,7 @@ In **User & Authentication → Multi-factor**:
 
 This is the step that makes Clerk challenge the user after the email factor. Without it, a user can sign in with only the first factor even if TOTP is enrolled. The dashboard gate still blocks the console, but the sign-in itself would not be a true two-factor sign-in.
 
-MFA availability can depend on the Clerk plan. If the option is unavailable, check the plan and whether the application is claimed.
+The instance used for this repository has **Authenticator application** and **Backup code** enabled and running on a development instance, so TOTP does not require a paid plan here. If the options are unavailable in your own app, check the instance's plan and settings rather than the application code.
 
 ### 6. Optional session policy
 
@@ -514,16 +520,26 @@ or
 2. In [vercel.com/new](https://vercel.com/new), import the repository.
 3. Framework preset: **Next.js**. Build command: `npm run build`. Output: default.
 4. Add every variable from `.env.example` under **Project Settings → Environment Variables**:
-   - `NEXT_PUBLIC_SITE_URL` = your production URL
-   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-   - `CLERK_SECRET_KEY`
-   - `SUPABASE_URL`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-   - `CLERK_WEBHOOK_SIGNING_SECRET`
+
+   ```env
+   NEXT_PUBLIC_SITE_URL=https://vigil-mfa-system.vercel.app
+   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+   CLERK_SECRET_KEY=sk_test_...
+   NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+   NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+   NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/dashboard
+   NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/dashboard/security
+   SUPABASE_URL=https://<project-ref>.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=...
+   CLERK_WEBHOOK_SIGNING_SECRET=whsec_...
+   ```
+
+   Mark `CLERK_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY` and `CLERK_WEBHOOK_SIGNING_SECRET` as **Sensitive**. Never rename any of them with a `NEXT_PUBLIC_` prefix.
+
 5. Deploy.
 6. Add the Vercel domain to Clerk's allowed origins and production redirect URLs.
-7. Create the production Clerk webhook endpoint pointing at the deployment.
-8. Redeploy after changing environment variables.
+7. Create the Clerk webhook endpoint pointing at the deployment.
+8. Redeploy after changing environment variables. Vercel does not apply new env values to an existing build.
 
 `NEXT_PUBLIC_SITE_URL` is read at build time for `metadataBase`. If you deploy to a preview URL first, set it to the final production domain before the production build, or update it and redeploy.
 
@@ -540,20 +556,31 @@ git push -u origin main
 
 If the repository name differs, update `site.github` in `src/lib/site.ts` so the console's reference links and the landing page point at the real repository.
 
-### Production checklist
+### Demo checklist (current submission)
+
+- [x] Clerk development instance, test mode, email code as first factor.
+- [x] Authenticator application enabled.
+- [x] Backup code enabled.
+- [x] Require MFA enabled.
+- [x] Test keys (`pk_test_`, `sk_test_`) in Vercel.
+- [ ] Clerk allowed origins include `https://vigil-mfa-system.vercel.app`.
+- [x] `NEXT_PUBLIC_SITE_URL` matches the production domain.
+- [x] Supabase schema applied to the project.
+- [x] Service-role key stored only in Vercel and `.env.local`.
+- [ ] Webhook endpoint created with its own signing secret.
+- [x] A test account completes email + TOTP + backup-code issuance.
+- [x] `/dashboard` opens after enrollment.
+- [x] `security_events` rejects update/delete.
+- [x] No `.env.local` or secret is present in the Git history.
+
+### Before calling it production
 
 - [ ] Clerk application claimed and on the intended plan.
-- [ ] Email code enabled and password/social providers configured intentionally.
-- [ ] Authenticator application enabled.
-- [ ] Backup code enabled.
-- [ ] Require MFA enabled.
-- [ ] Production keys (`pk_live_`, `sk_live_`) in Vercel.
-- [ ] Clerk allowed origins include the production domain.
-- [ ] `NEXT_PUBLIC_SITE_URL` matches the production domain.
-- [ ] Supabase schema applied to the production project.
-- [ ] Service-role key stored only in Vercel.
-- [ ] Production webhook endpoint created with its own signing secret.
-- [ ] A test account completes email + TOTP + backup-code recovery.
+- [ ] Switch to `pk_live_` / `sk_live_` keys.
+- [ ] Configure a real email provider in Clerk.
+- [ ] Decide whether Google stays enabled.
+- [ ] Create a separate production webhook endpoint and signing secret.
+- [ ] Remove the test account.
 - [ ] `/dashboard` redirects to `/dashboard/security` before enrollment.
 - [ ] `/dashboard` opens after enrollment.
 - [ ] Removing the authenticator closes the gate again.
